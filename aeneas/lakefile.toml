@@ -1,20 +1,20 @@
-# Aeneas side: the Rust source of `avg`, translated to Lean by Aeneas, proved equal to `avgSpec`.
+# Aeneas side: the Rust source of `avg`, translated to Lean by Aeneas, proved to satisfy `IsAvg`.
 # Separate package because Aeneas pins Lean v4.31.0 while riscv-zkvm (riscv/) pins v4.33.0.
 name = "AvgAeneas"
 version = "0.1.0"
 defaultTargets = ["AvgAeneas"]
 
-# The trusted spec (`avgSpec`).
+# The trusted spec (`IsAvg`).
 [[require]]
 name = "spec"
 path = "../spec"
 
 # avgFast and its proofs (reused for the no-overflow and value obligations).
 [[require]]
-name = "fast"
-path = "../fast"
+name = "algo"
+path = "../algo"
 
-# Must match the aeneas binary used to generate AvgAeneas/Extracted (nightly-2026.09.25-fd27c97).
+# Must match the aeneas binary used to generate AvgAeneas/Impl (nightly-2026.09.25-fd27c97).
 [[require]]
 name = "aeneas"
 git = { url = "https://github.com/AeneasVerif/aeneas", subDir = "backends/lean" }

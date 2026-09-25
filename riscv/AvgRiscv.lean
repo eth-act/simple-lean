@@ -1,2 +1,2 @@
-import AvgRiscv.Program
+import AvgRiscv.Impl
 import AvgRiscv.Proofs

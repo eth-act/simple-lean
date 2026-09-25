@@ -1,6 +1,6 @@
 # The trusted specification. Core Lean only (no Mathlib, no Aeneas, no riscv-zkvm), so it
 # builds unchanged under every consumer's toolchain: the Aeneas side (aeneas/) and the
-# RISC-V side (riscv/) pin different Lean versions but share this one `avgSpec`.
+# RISC-V side (riscv/) pin different Lean versions but share this one `IsAvg`.
 name = "spec"
 version = "0.1.0"
 defaultTargets = ["AvgSpec"]

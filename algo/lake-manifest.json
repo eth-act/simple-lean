@@ -8,6 +8,6 @@
    "inherited": false,
    "dir": "../spec",
    "configFile": "lakefile.toml"}],
- "name": "fast",
+ "name": "algo",
  "lakeDir": ".lake",
  "fixedToolchain": false}

@@ -3,7 +3,7 @@
 /// Floor average of two `u64`s without overflow.
 ///
 /// `a + b = 2·(a & b) + (a ^ b)`, so `(a + b) / 2 = (a & b) + (a ^ b) / 2`,
-/// and neither term can overflow. Proved equal to `Avg.avgSpec` in
+/// and neither term can overflow. Proved to satisfy the spec `Avg.IsAvg` in
 /// `aeneas/AvgAeneas/Proofs.lean` (via Aeneas) and, as RV64IM machine code, in
 /// `riscv/AvgRiscv/Proofs.lean`.
 ///

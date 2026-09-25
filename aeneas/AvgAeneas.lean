@@ -1,2 +1,2 @@
-import AvgAeneas.Extracted.Avg
+import AvgAeneas.Impl.Avg
 import AvgAeneas.Proofs

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that rustc's RISC-V output for `avg` is exactly `avgProgram` in riscv/AvgRiscv/Program.lean.
+"""Check that rustc's RISC-V output for `avg` is exactly `avgProgram` in riscv/AvgRiscv/Impl.lean.
 
 The Lean proof (riscv/AvgRiscv/Proofs.lean) is about the instruction list `avgProgram`.
 This script ties that list to real compiler output:
@@ -27,7 +27,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CRATE = os.path.join(ROOT, "rust")
-LEAN_PROGRAM = os.path.join(ROOT, "riscv", "AvgRiscv", "Program.lean")
+LEAN_PROGRAM = os.path.join(ROOT, "riscv", "AvgRiscv", "Impl.lean")
 RUST_TOOLCHAIN = "1.94.0"
 TARGET = "riscv64imac-unknown-none-elf"
 # riscv-zkvm models RV64IM: no compressed (C / Zca) or atomic instructions.
@@ -117,7 +117,7 @@ def main():
         e = expected[i] if i < len(expected) else "<none>"
         print(f"{'  ' if c == e else '!!'} {i:2}  rustc: {c:28}  lean: {e}")
     if compiled != expected:
-        print("\nrustc's output for `avg` differs from `avgProgram` in riscv/AvgRiscv/Program.lean.\n"
+        print("\nrustc's output for `avg` differs from `avgProgram` in riscv/AvgRiscv/Impl.lean.\n"
               "Update avgProgram to match (the proof in riscv/AvgRiscv/Proofs.lean must then be redone).",
               file=sys.stderr)
         sys.exit(1)
