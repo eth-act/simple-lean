@@ -1,0 +1,6 @@
+name = "Avg"
+version = "0.1.0"
+defaultTargets = ["Avg"]
+
+[[lean_lib]]
+name = "Avg"
