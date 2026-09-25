@@ -1,1 +1,4 @@
 /.lake
+*/target
+*/Cargo.lock
+/rust/avg.llbc

@@ -1,3 +1,6 @@
 import Avg.Spec
-import Avg.Fast
-import Avg.Naive
+import Avg.Impl.Fast
+import Avg.Impl.Rust.Avg
+import Avg.Proofs.Fast
+import Avg.Proofs.Naive
+import Avg.Proofs.Rust

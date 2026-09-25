@@ -1,18 +1,12 @@
 import Std.Tactic.BVDecide
 import Avg.Spec
+import Avg.Impl.Fast
 
 /-!
-# Optimised average
-
-`a + b = 2·(a &&& b) + (a ^^^ b)`: shared bits count twice, differing bits once.
-So `(a + b) / 2 = (a &&& b) + (a ^^^ b) / 2`, and neither term can overflow.
+# `avgFast` meets the spec
 -/
 
 namespace Avg
-
-/-- Optimised: stays in 64 bits, no widening needed. -/
-def avgFast (a b : BitVec 64) : BitVec 64 :=
-  (a &&& b) + ((a ^^^ b) >>> 1)
 
 /-- The optimised version is exactly the spec, for all 2^128 inputs. -/
 theorem avgFast_eq_spec (a b : BitVec 64) : avgFast a b = avgSpec a b := by
@@ -23,5 +17,12 @@ theorem avgFast_eq_spec (a b : BitVec 64) : avgFast a b = avgSpec a b := by
 theorem avgFast_toNat (a b : BitVec 64) :
     (avgFast a b).toNat = (a.toNat + b.toNat) / 2 := by
   rw [avgFast_eq_spec, avgSpec_toNat]
+
+/-- `(a &&& b) + ((a ^^^ b) >>> 1)` never carries out of 64 bits. -/
+theorem avgFast_noOverflow (a b : BitVec 64) :
+    (a &&& b).toNat + ((a ^^^ b) >>> 1).toNat ≤ 2 ^ 64 - 1 := by
+  have h : BitVec.uaddOverflow (a &&& b) ((a ^^^ b) >>> 1) = false := by bv_decide
+  simp only [BitVec.uaddOverflow, decide_eq_false_iff_not, Nat.not_le] at h
+  omega
 
 end Avg
