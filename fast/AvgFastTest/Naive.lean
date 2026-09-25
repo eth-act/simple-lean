@@ -1,12 +1,12 @@
 import Std.Tactic.BVDecide
-import Avg.Spec
-import Avg.Impl.Fast
+import AvgSpec
+import AvgFast.Impl
 
 /-!
 # `bv_decide` rejects the naive average with a counterexample
 
 Pins the exact message: if a Lean upgrade changes `bv_decide`'s output, update it here.
-The theorem that `avgNaive` is wrong lives in `Avg.Proofs.Naive`.
+The theorem that `avgNaive` is wrong lives in `AvgFast.Naive`.
 -/
 
 namespace Avg

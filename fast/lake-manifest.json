@@ -1,0 +1,13 @@
+{"version": "1.2.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "spec",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "../spec",
+   "configFile": "lakefile.toml"}],
+ "name": "fast",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

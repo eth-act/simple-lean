@@ -6,26 +6,63 @@ on:
   workflow_dispatch:
 
 env:
-  # Aeneas/Charon release used to extract Avg/Impl/Rust from rust/.
-  # MUST match the `rev` of the `aeneas` requirement in lakefile.toml
+  # Aeneas/Charon release used to extract aeneas/AvgAeneas/Extracted from rust/.
+  # MUST match the `rev` of the `aeneas` requirement in aeneas/lakefile.toml
   # (release nightly-2026.09.25-fd27c97 == commit fd27c97d39108dd1c6b0cb46bbefd0b94a47b591).
   AENEAS_RELEASE: nightly-2026.09.25-fd27c97
 
 jobs:
   lean:
-    name: Lean build
+    name: Aeneas proof (aeneas/, Lean v4.31 + Aeneas)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       # Installs elan + the `lean-toolchain` toolchain, caches `.lake` keyed on
-      # lean-toolchain + lake-manifest.json, fetches the Mathlib cache, runs
-      # `lake build` (library) then `lake test` (AvgTest, via `testDriver`).
+      # lean-toolchain + lake-manifest.json, fetches the Mathlib cache, runs `lake build`.
       - uses: leanprover/lean-action@v1
         with:
+          lake-package-directory: aeneas
           # Mathlib is only a transitive dependency (via aeneas), so don't rely on auto-detection.
           use-mathlib-cache: true
+
+  fast:
+    name: avgFast / avgNaive proofs + tests (fast/, core Lean)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # `lake build` (AvgFast) then `lake test` (AvgFastTest, via `testDriver`).
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: fast
+          use-mathlib-cache: false
           # Explicit, so a broken test driver fails CI instead of silently skipping tests.
           test: true
+
+  riscv-lean:
+    name: RISC-V proof (riscv/, Lean v4.33 + riscv-zkvm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Separate Lake package: riscv-zkvm pins Lean v4.33.0, Aeneas (aeneas/) v4.31.0.
+      # riscv-zkvm is a tagged dependency, so Lake downloads its prebuilt oleans.
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: riscv
+          use-mathlib-cache: false
+
+  riscv-asm:
+    name: rustc RISC-V output matches the proved avgProgram
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install RISC-V binutils
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf
+      - name: Install the pinned rustc (RUST_TOOLCHAIN in scripts/check-riscv-asm.py)
+        run: |
+          TC=$(sed -n 's/^RUST_TOOLCHAIN = "\(.*\)"/\1/p' scripts/check-riscv-asm.py)
+          rustup toolchain install "$TC" --profile minimal -t riscv64imac-unknown-none-elf
+      - name: Compare disassembly of `avg` with riscv/AvgRiscv/Program.lean
+        run: scripts/check-riscv-asm.py
 
   rust:
     name: Rust tests
@@ -71,13 +108,13 @@ jobs:
         working-directory: rust
         run: |
           charon cargo --preset=aeneas
-          aeneas -backend lean -dest ../Avg/Impl/Rust -namespace Avg.Rust avg.llbc
+          aeneas -backend lean -dest ../aeneas/AvgAeneas/Extracted -namespace Avg.Rust avg.llbc
 
-      - name: Check generated Lean matches the committed Avg/Impl/Rust
+      - name: Check generated Lean matches the committed aeneas/AvgAeneas/Extracted
         run: |
-          if ! git diff --exit-code -- Avg/Impl/Rust || [ -n "$(git status --porcelain -- Avg/Impl/Rust)" ]; then
-            git status --porcelain -- Avg/Impl/Rust
-            echo "::error::Avg/Impl/Rust is out of date with rust/. Regenerate it locally (in rust/, with the ${AENEAS_RELEASE} charon/aeneas binaries on PATH): 'charon cargo --preset=aeneas && aeneas -backend lean -dest ../Avg/Impl/Rust -namespace Avg.Rust avg.llbc', then commit the result. Never hand-edit Avg/Impl/Rust."
+          if ! git diff --exit-code -- aeneas/AvgAeneas/Extracted || [ -n "$(git status --porcelain -- aeneas/AvgAeneas/Extracted)" ]; then
+            git status --porcelain -- aeneas/AvgAeneas/Extracted
+            echo "::error::aeneas/AvgAeneas/Extracted is out of date with rust/. Regenerate it locally (in rust/, with the ${AENEAS_RELEASE} charon/aeneas binaries on PATH): 'charon cargo --preset=aeneas && aeneas -backend lean -dest ../aeneas/AvgAeneas/Extracted -namespace Avg.Rust avg.llbc', then commit the result. Never hand-edit aeneas/AvgAeneas/Extracted."
             exit 1
           fi
-          echo "Avg/Impl/Rust is in sync with rust/."
+          echo "aeneas/AvgAeneas/Extracted is in sync with rust/."

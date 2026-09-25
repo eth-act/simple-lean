@@ -1,0 +1,19 @@
+# avgFast (the bit-trick average), avgNaive (the overflowing one), and their proofs against
+# the spec. Core Lean only, like spec/, so both proof packages (root: Aeneas, Lean v4.31;
+# riscv/: riscv-zkvm, Lean v4.33) can depend on it under their own toolchains.
+name = "fast"
+version = "0.1.0"
+defaultTargets = ["AvgFast"]
+# `lake test` builds AvgFastTest (tool-behaviour checks such as #guard_msgs).
+testDriver = "AvgFastTest"
+
+[[require]]
+name = "spec"
+path = "../spec"
+
+[[lean_lib]]
+name = "AvgFast"
+
+# Regression checks on tool output (e.g. bv_decide's counterexample); not part of the library.
+[[lean_lib]]
+name = "AvgFastTest"

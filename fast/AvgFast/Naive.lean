@@ -1,5 +1,5 @@
-import Avg.Spec
-import Avg.Impl.Fast
+import AvgSpec
+import AvgFast.Impl
 
 /-!
 # The naive average does not meet the spec

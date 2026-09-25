@@ -1,6 +1,6 @@
 import Std.Tactic.BVDecide
-import Avg.Spec
-import Avg.Impl.Fast
+import AvgSpec
+import AvgFast.Impl
 
 /-!
 # `avgFast` meets the spec

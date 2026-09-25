@@ -20,7 +20,7 @@ set_option maxRecDepth 2048
 namespace Avg.Rust
 
 /-- [avg::avg]:
-    Source: 'src/lib.rs', lines 6:0-8:1
+    Source: 'src/lib.rs', lines 13:0-15:1
     Visibility: public -/
 def avg (a : Std.U64) (b : Std.U64) : Result Std.U64 := do
   let i ← lift (a &&& b)
