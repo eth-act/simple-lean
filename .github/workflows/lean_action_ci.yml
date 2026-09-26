@@ -43,26 +43,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: riscv-zkvm pins Lean v4.33.0, Aeneas (aeneas/) v4.31.0.
+      # Separate Lake package: riscv-zkvm pins Lean v4.33.0 (aeneas/ v4.31.0, x86/ v4.32.0-rc1).
       # riscv-zkvm is a tagged dependency, so Lake downloads its prebuilt oleans.
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: riscv
           use-mathlib-cache: false
 
-  riscv-asm:
-    name: rustc RISC-V output matches the proved avgProgram
+  x86-lean:
+    name: x86-64 proof (x86/, Lean v4.32.0-rc1 + x86lean)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install RISC-V binutils
+      # Separate Lake package: x86lean pins Lean v4.32.0-rc1. Core Lean only, no prebuilt
+      # oleans; the model builds from source in well under a minute.
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: x86
+          use-mathlib-cache: false
+
+  asm:
+    name: rustc machine code matches each proved avgProgram (RISC-V, x86-64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install RISC-V binutils (x86-64 objdump ships with the runner)
         run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf
-      - name: Install the pinned rustc (RUST_TOOLCHAIN in scripts/check-riscv-asm.py)
+      - name: Install the pinned rustc (RUST_TOOLCHAIN in scripts/check-asm.py)
         run: |
-          TC=$(sed -n 's/^RUST_TOOLCHAIN = "\(.*\)"/\1/p' scripts/check-riscv-asm.py)
-          rustup toolchain install "$TC" --profile minimal -t riscv64imac-unknown-none-elf
-      - name: Compare disassembly of `avg` with riscv/AvgRiscv/Impl.lean
-        run: scripts/check-riscv-asm.py
+          TC=$(sed -n 's/^RUST_TOOLCHAIN = "\(.*\)"/\1/p' scripts/check-asm.py)
+          rustup toolchain install "$TC" --profile minimal \
+            -t riscv64imac-unknown-none-elf -t x86_64-unknown-linux-gnu
+      - name: Compare disassembly of `avg` with each ISA's Impl.lean
+        run: scripts/check-asm.py
 
   rust:
     name: Rust tests

@@ -1,0 +1,25 @@
+# x86-64 side: rustc's x86-64 machine code for `avg`, proved to satisfy `IsAvg`, on the
+# x86lean semantics. Separate package: x86lean pins Lean v4.32.0-rc1, Aeneas (aeneas/)
+# pins v4.31.0 and riscv-zkvm (riscv/) v4.33.0.
+name = "AvgX86"
+version = "0.1.0"
+defaultTargets = ["AvgX86"]
+
+[[require]]
+name = "spec"
+path = "../spec"
+
+# avgFast and `avgFast_isAvg`: the machine code computes avgFast, and this lemma finishes.
+[[require]]
+name = "algo"
+path = "../algo"
+
+# User-level x86-64 semantics in Lean 4 (hand-written; each form differentially tested
+# against ACL2 x86isa). Pinned to an exact commit: the project is young and its AST may move.
+[[require]]
+name = "x86lean"
+git = "https://github.com/jyh/x86lean"
+rev = "16e2cb21de102769d040cc219fa537968e2488fc"
+
+[[lean_lib]]
+name = "AvgX86"

@@ -1,7 +1,7 @@
 # Avg
 
-One spec for the floor average of two `u64`s, and two implementations proved to meet it:
-the Rust source (through Aeneas) and the RISC-V machine code rustc compiles it to.
+One spec for the floor average of two `u64`s, and implementations proved to meet it: the Rust
+source (through Aeneas), and the RISC-V and x86-64 machine code rustc compiles it to.
 
 ## What to review
 
@@ -13,6 +13,7 @@ a reviewer reads these statements (not their proofs):
 | `spec/AvgSpec.lean` | `IsAvg` | `r` is the floor average: `r = (a + b) / 2` over `ℕ` |
 | `aeneas/AvgAeneas/Proofs.lean` | `rust_avg_correct` | the Rust `avg` never panics and returns an `IsAvg` result |
 | `riscv/AvgRiscv/Proofs.lean` | `avgProgram_spec` | the machine code returns to `ra` with an `IsAvg` result in `a0`, leaving all other state untouched |
+| `x86/AvgX86/Proofs.lean` | `avgProgram_correct` | the machine code returns to `[rsp]` with an `IsAvg` result in `rax`; memory and all registers except `rax`, `rsi`, `rsp` unchanged |
 
 Each file lists its main results at the top.
 
@@ -35,14 +36,19 @@ riscv/                     Lean v4.33 + riscv-zkvm
   AvgRiscv/Impl.lean       avgProgram: rustc's RV64IM output for `avg`
   AvgRiscv/Proofs.lean     avgProgram_spec: separation-logic triple (framed); avgProgram_correct: stepN form
 
+x86/                       Lean v4.32.0-rc1 + x86lean
+  AvgX86/Impl.lean         avgProgram: rustc's x86-64 output for `avg`
+  AvgX86/Proofs.lean       avgProgram_correct: runs, returns to [rsp], IsAvg rdi rsi rax, frame
+
 rust/                      the Rust crate
-scripts/check-riscv-asm.py checks rustc's disassembly == avgProgram
+scripts/check-asm.py       checks rustc's disassembly == each ISA's avgProgram
 ```
 
-Both proof packages reuse `algo/`: the Rust and the RISC-V code both compute `avgFast`, so
-each finishes with `avgFast_isAvg`. `aeneas/` and `riscv/` are separate Lake packages
-because Aeneas pins Lean v4.31.0 and riscv-zkvm pins v4.33.0. `spec/` and `algo/` import
-nothing beyond core Lean, so both sides compile the same `IsAvg` and `avgFast`.
+Every proof package reuses `algo/`: the Rust, RISC-V and x86-64 code all compute `avgFast`,
+so each finishes with `avgFast_isAvg`. `aeneas/`, `riscv/` and `x86/` are separate Lake
+packages because they pin different Lean versions (v4.31.0, v4.33.0, v4.32.0-rc1). `spec/`
+and `algo/` import nothing beyond core Lean, so every side compiles the same `IsAvg` and
+`avgFast`.
 
 ## Checking
 
@@ -50,11 +56,12 @@ nothing beyond core Lean, so both sides compile the same `IsAvg` and `avgFast`.
 (cd aeneas && lake build)               # Aeneas side
 (cd algo && lake build && lake test)    # avgWide / avgFast / avgOverflow
 (cd riscv && lake build)                # RISC-V side
-scripts/check-riscv-asm.py              # rustc 1.94.0 output == avgProgram
+(cd x86 && lake build)                  # x86-64 side
+scripts/check-asm.py                    # rustc 1.94.0 output == each avgProgram
 ```
 
-What is still trusted on the RISC-V path (rustc's pinned output, objdump, the Sail model) and
-the plan to shrink it: see [TODO.md](TODO.md).
+What is still trusted on the machine-code paths (rustc's pinned output, objdump, each ISA
+model) and the plan to shrink it: see [TODO.md](TODO.md).
 
 ## Reading
 

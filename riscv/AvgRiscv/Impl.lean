@@ -6,7 +6,7 @@ import RiscvZkvm.Rv64
 These are exactly the instructions rustc emits for `rust/src/lib.rs` (release, target
 `riscv64imac-unknown-none-elf` with compressed instructions disabled). CI recompiles the
 crate, disassembles the `avg` symbol, and checks it against this list:
-see `scripts/check-riscv-asm.py`. Keep the two in sync; do not edit one without the other.
+see `scripts/check-asm.py`. Keep the two in sync; do not edit one without the other.
 
 RISC-V psABI: arguments in `a0` (x10) and `a1` (x11), result in `a0`, return address in
 `ra` (x1). `x12` (a2) is a caller-saved temporary.

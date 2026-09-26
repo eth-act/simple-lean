@@ -3,7 +3,7 @@
 ## RISC-V: take objdump out of the trusted base (option b)
 
 Today `riscv/AvgRiscv/Proofs.lean` proves the instruction list `avgProgram` correct, and
-`scripts/check-riscv-asm.py` ties that list to rustc's output by disassembling it with
+`scripts/check-asm.py` ties that list to rustc's output by disassembling it with
 objdump and comparing text. So objdump, and the script's mnemonic-to-`Instr` mapping,
 are trusted.
 
@@ -26,3 +26,22 @@ Sail RISC-V spec is per instruction (`RiscvZkvm.Rv64.SailEquiv`).
 
 - [ ] Use `sailStepN_run_sim` to restate the theorem over `RiscvZkvm.Sail` states, so
       the trusted model is Sail rather than the hand-written `stepN`.
+
+## x86-64: take objdump out of the trusted base
+
+Same gap as RISC-V (b): `x86/AvgX86/Impl.lean` is a transcription of objdump's output,
+checked textually by `scripts/check-asm.py`. x86lean has no decoder yet (it trusts Intel
+XED; its own roadmap has a Lean decoder "for the covered subset" as a later phase).
+
+- [ ] When x86lean ships its decoder, commit `avg`'s bytes (`48 89 f0 48 21 f8 …`) and
+      prove they decode to `avgProgram`, replacing the text comparison.
+
+## x86-64: what the model is trusted for
+
+x86lean's `step` is hand-written, differentially tested against ACL2 x86isa (every form,
+zero unexplained disagreements), not proved against it, and not yet co-simulated on
+hardware. It is three weeks old and pinned to one commit in `x86/lakefile.toml`.
+
+- [ ] Re-pin when x86lean runs hardware co-simulation; check the AST didn't move.
+- [ ] Watch for a Sail/x86isa-backed Lean model (the Sail x86 model's Lean output did not
+      build under lean-sail v6: old memory interface) that could replace or check it.
