@@ -45,3 +45,19 @@ hardware. It is three weeks old and pinned to one commit in `x86/lakefile.toml`.
 - [ ] Re-pin when x86lean runs hardware co-simulation; check the AST didn't move.
 - [ ] Watch for a Sail/x86isa-backed Lean model (the Sail x86 model's Lean output did not
       build under lean-sail v6: old memory interface) that could replace or check it.
+
+## AArch64: stabilize the model pin and byte extraction
+
+`arm/` uses LNSym's fetch/decode/run semantics on raw instruction words. Decoding those
+words is checked in Lean, but the hand-written decoder and instruction semantics are
+still trusted to describe AArch64. Upstream has co-simulation tooling; this repository
+does not establish an ASL equivalence or claim local Arm hardware validation.
+
+- [ ] Move the exact `upgrade-lean-versions` commit pin to an upstream main/tag revision
+      once the Lean upgrade lands, rebuilding the proof before changing it.
+- [ ] Replace objdump word extraction with direct extraction of the `avg` symbol's bytes.
+      Today objdump and the extraction/comparison script remain trusted.
+- [ ] Track an ASL equivalence for the decoder and the instruction forms used here.
+- [ ] Consider a separation-logic wrapper for composition with callers. The current theorem
+      already preserves memory, the separate program map and all state fields except
+      `x0`, `x8`, `x9` and PC; it does not model self-modifying code.

@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """Check that rustc's machine code for `avg` is exactly the instruction list each proof is about.
 
-Each ISA proof (riscv/AvgRiscv/Proofs.lean, x86/AvgX86/Proofs.lean) is about a Lean list
+Each ISA proof (riscv/, x86/, arm/) is about a Lean list
 `avgProgram` in the package's `Impl.lean`. This script ties that list to real compiler output:
 
   1. build rust/ for the ISA's target (release),
   2. disassemble the `avg` symbol with objdump,
-  3. render each instruction in the Lean model's syntax and compare with `avgProgram`.
+  3. compare decoded instructions (RISC-V/x86) or raw words (Arm) with the Lean list.
 
-Trusted here: rustc, objdump, and this script's mnemonic mapping. Replacing the text
-comparison with a proof about the raw bytes (a verified decoder) is tracked in TODO.md.
+Trusted here: rustc, objdump, this script, and its RISC-V/x86 mnemonic mappings.
+Arm decoding happens inside the Lean proof; the decoder's ISA faithfulness remains trusted.
 
 rustc is pinned (RUST_TOOLCHAIN): codegen can change between versions and each proof is
 about one exact instruction sequence. Bumping it may require updating the Impl files.
 
-Usage: scripts/check-asm.py [riscv|x86 ...]   (default: all; run from anywhere)
+Usage: scripts/check-asm.py [riscv|x86|arm ...]   (default: all; run from anywhere)
 Needs: rustup with RUST_TOOLCHAIN and each ISA's target installed; the ISA's objdump.
-Env:   OBJDUMP_RISCV (default riscv64-unknown-elf-objdump), OBJDUMP_X86 (default objdump)
+Env:   OBJDUMP_RISCV (default riscv64-unknown-elf-objdump), OBJDUMP_X86 (default objdump),
+       OBJDUMP_ARM (default llvm-objdump).
 """
 
 import os
@@ -64,14 +65,14 @@ def objdump_lines(objdump, flags, obj):
     return insns
 
 
-def lean_list(path, name="avgProgram"):
-    """The entries of `def <name> : List Instr := [ ... ]`, whitespace-normalised.
+def lean_list(path, name="avgProgram", ty="List Instr"):
+    """The entries of `def <name> : <ty> := [ ... ]`, whitespace-normalised.
 
     Entries are split at top-level commas only (x86lean entries `⟨op, len⟩` contain commas)."""
     src = open(path).read()
-    m = re.search(rf"def {name} : List Instr :=\s*\[", src)
+    m = re.search(rf"def {re.escape(name)} : {re.escape(ty)} :=\s*\[", src)
     if not m:
-        sys.exit(f"could not find `def {name} : List Instr := [` in {path}")
+        sys.exit(f"could not find `def {name} : {ty} := [` in {path}")
     src = re.sub(r"--[^\n]*", "", src[m.end():])
     entries, cur, depth = [], "", 0
     for ch in src:
@@ -183,7 +184,19 @@ def check_x86():
     return compiled, expected
 
 
-ISAS = {"riscv": check_riscv, "x86": check_x86}
+def check_arm():
+    rlib = build_rlib("aarch64-unknown-linux-gnu")
+    objdump = os.environ.get("OBJDUMP_ARM", "llvm-objdump")
+    compiled = []
+    for raw, mnem, ops in objdump_lines(objdump, [], rlib):
+        if len(raw) != 8:
+            sys.exit(f"expected a 32-bit AArch64 instruction word: {raw} {mnem} {ops}")
+        compiled.append(f"0x{raw}#32")
+    return compiled, lean_list(
+        os.path.join(ROOT, "arm", "AvgArm", "Impl.lean"), ty="List (BitVec 32)")
+
+
+ISAS = {"riscv": check_riscv, "x86": check_x86, "arm": check_arm}
 
 
 def main():

@@ -1,7 +1,7 @@
 # Avg
 
 One spec for the floor average of two `u64`s, and implementations proved to meet it: the Rust
-source (through Aeneas), and the RISC-V and x86-64 machine code rustc compiles it to.
+source (through Aeneas), and the RISC-V, x86-64 and AArch64 machine code rustc compiles it to.
 
 ## What to review
 
@@ -12,8 +12,9 @@ a reviewer reads these statements (not their proofs):
 |---|---|---|
 | `spec/AvgSpec.lean` | `IsAvg` | `r` is the floor average: `r = (a + b) / 2` over `ℕ` |
 | `aeneas/AvgAeneas/Proofs.lean` | `rust_avg_correct` | the Rust `avg` never panics and returns an `IsAvg` result |
-| `riscv/AvgRiscv/Proofs.lean` | `avgProgram_spec` | the machine code returns to `ra` with an `IsAvg` result in `a0`, leaving all other state untouched |
-| `x86/AvgX86/Proofs.lean` | `avgProgram_correct` | the machine code returns to `[rsp]` with an `IsAvg` result in `rax`; memory and all registers except `rax`, `rsi`, `rsp` unchanged |
+| `riscv/AvgRiscv/Proofs.lean` | `avgProgram_spec` | the machine code returns to `ra` (low bit cleared) with an `IsAvg` result in `a0`, preserving the separation-logic frame |
+| `x86/AvgX86/Proofs.lean` | `avgProgram_correct` | from a live state with a canonical return address, returns to `[rsp]` with an `IsAvg` result in `rax`; memory, SIMD and GPRs except `rax`, `rsi`, `rsp` unchanged |
+| `arm/AvgArm/Proofs.lean` | `avgProgram_correct` | with code loaded at the initial PC and no model error, executes four words, returns to `x30` with an `IsAvg` result in `x0`, preserving memory, code and state fields except `x0`, `x8`, `x9`, PC |
 
 Each file lists its main results at the top.
 
@@ -40,15 +41,20 @@ x86/                       Lean v4.32.0-rc1 + x86lean
   AvgX86/Impl.lean         avgProgram: rustc's x86-64 output for `avg`
   AvgX86/Proofs.lean       avgProgram_correct: runs, returns to [rsp], IsAvg rdi rsi rax, frame
 
+arm/                       Lean v4.31 + LNSym
+  AvgArm/Impl.lean         avgProgram: rustc's four raw AArch64 instruction words
+  AvgArm/Proofs.lean       avgProgram_correct: fetch/decode/run, return to x30, IsAvg, frame
+
 rust/                      the Rust crate
 scripts/check-asm.py       checks rustc's disassembly == each ISA's avgProgram
 ```
 
-Every proof package reuses `algo/`: the Rust, RISC-V and x86-64 code all compute `avgFast`,
-so each finishes with `avgFast_isAvg`. `aeneas/`, `riscv/` and `x86/` are separate Lake
-packages because they pin different Lean versions (v4.31.0, v4.33.0, v4.32.0-rc1). `spec/`
-and `algo/` import nothing beyond core Lean, so every side compiles the same `IsAvg` and
-`avgFast`.
+Every proof package reuses `algo/`: the Rust and all three machine-code implementations
+compute `avgFast`, so each finishes with `avgFast_isAvg`. Separate Lake packages accommodate
+the models' Lean versions: Aeneas and Arm use v4.31.0, RISC-V v4.33.0, x86 v4.32.0-rc1.
+`spec/` and `algo/` import nothing beyond core Lean, so every side compiles the same `IsAvg`
+and `avgFast`. Build these packages sequentially locally: their shared path dependencies'
+build artifacts are toolchain-specific.
 
 ## Checking
 
@@ -57,11 +63,18 @@ and `algo/` import nothing beyond core Lean, so every side compiles the same `Is
 (cd algo && lake build && lake test)    # avgWide / avgFast / avgOverflow
 (cd riscv && lake build)                # RISC-V side
 (cd x86 && lake build)                  # x86-64 side
+(cd arm && lake build)                  # AArch64 side
 scripts/check-asm.py                    # rustc 1.94.0 output == each avgProgram
 ```
 
-What is still trusted on the machine-code paths (rustc's pinned output, objdump, each ISA
-model) and the plan to shrink it: see [TODO.md](TODO.md).
+The assembly check needs the pinned Rust targets plus `riscv64-unknown-elf-objdump`,
+`objdump` and `llvm-objdump`; see the script's header for environment overrides.
+
+Arm's proof evaluates LNSym's fetch and decoder on raw words; unlike the RISC-V/x86 paths,
+it does not trust a mnemonic-to-instruction transcription. All paths still trust the ISA
+model's fidelity and the compiler-output binding script/tools. LNSym is pinned to commit
+`df80e2f600dc7f2976809829198a1d9fd07cb379` on its `upgrade-lean-versions` branch.
+Remaining trust boundaries and plans to shrink them: see [TODO.md](TODO.md).
 
 ## Reading
 

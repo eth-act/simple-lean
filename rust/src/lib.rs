@@ -4,11 +4,11 @@
 ///
 /// `a + b = 2·(a & b) + (a ^ b)`, so `(a + b) / 2 = (a & b) + (a ^ b) / 2`,
 /// and neither term can overflow. Proved to satisfy the spec `Avg.IsAvg` in
-/// `aeneas/AvgAeneas/Proofs.lean` (via Aeneas) and, as RV64IM machine code, in
-/// `riscv/AvgRiscv/Proofs.lean`.
+/// `aeneas/AvgAeneas/Proofs.lean` (via Aeneas) and as machine code in
+/// `riscv/AvgRiscv/Proofs.lean`, `x86/AvgX86/Proofs.lean`, `arm/AvgArm/Proofs.lean`.
 ///
-/// `extern "C"` pins the calling convention to the RISC-V psABI (`a` in `a0`,
-/// `b` in `a1`, result in `a0`), which is what the machine-code proof assumes.
+/// `extern "C"` selects each target's C ABI: RISC-V psABI, x86-64 System V,
+/// or AAPCS64. The machine-code proofs use the corresponding argument/result registers.
 #[unsafe(no_mangle)]
 pub extern "C" fn avg(a: u64, b: u64) -> u64 {
     (a & b) + ((a ^ b) >> 1)

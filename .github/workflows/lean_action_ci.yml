@@ -62,18 +62,28 @@ jobs:
           lake-package-directory: x86
           use-mathlib-cache: false
 
-  asm:
-    name: rustc machine code matches each proved avgProgram (RISC-V, x86-64)
+  arm-lean:
+    name: AArch64 proof (arm/, Lean v4.31 + LNSym)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install RISC-V binutils (x86-64 objdump ships with the runner)
-        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: arm
+          use-mathlib-cache: false
+
+  asm:
+    name: rustc machine code matches each proved avgProgram (RISC-V, x86-64, AArch64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install RISC-V binutils and LLVM (x86-64 objdump ships with the runner)
+        run: sudo apt-get update && sudo apt-get install -y binutils-riscv64-unknown-elf llvm
       - name: Install the pinned rustc (RUST_TOOLCHAIN in scripts/check-asm.py)
         run: |
           TC=$(sed -n 's/^RUST_TOOLCHAIN = "\(.*\)"/\1/p' scripts/check-asm.py)
           rustup toolchain install "$TC" --profile minimal \
-            -t riscv64imac-unknown-none-elf -t x86_64-unknown-linux-gnu
+            -t riscv64imac-unknown-none-elf -t x86_64-unknown-linux-gnu -t aarch64-unknown-linux-gnu
       - name: Compare disassembly of `avg` with each ISA's Impl.lean
         run: scripts/check-asm.py
 

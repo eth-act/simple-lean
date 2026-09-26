@@ -16,6 +16,8 @@ each implementation's inputs and outputs map onto `IsAvg`:
 
 * `aeneas/AvgAeneas/Proofs.lean`: `rust_avg_correct`
 * `riscv/AvgRiscv/Proofs.lean`: `avgProgram_spec` (and `avgProgram_correct`)
+* `x86/AvgX86/Proofs.lean`: `avgProgram_correct`
+* `arm/AvgArm/Proofs.lean`: `avgProgram_correct`
 
 Everything else, including `algo/` and every proof body, is checked by Lean.
 -/

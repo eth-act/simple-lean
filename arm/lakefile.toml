@@ -1,0 +1,28 @@
+# AArch64 side: rustc's AArch64 machine code for `avg`, proved to satisfy `IsAvg`, on the
+# LNSym Armv8 semantics. Separate package: LNSym is pinned to Lean v4.31.0 here (as are
+# spec/ and algo/); x86lean (x86/) pins v4.32.0-rc1 and riscv-zkvm (riscv/) v4.33.0.
+name = "AvgArm"
+version = "0.1.0"
+defaultTargets = ["AvgArm"]
+
+[[require]]
+name = "spec"
+path = "../spec"
+
+# avgFast and `avgFast_isAvg`: the machine code computes avgFast, and this lemma finishes.
+[[require]]
+name = "algo"
+path = "../algo"
+
+# LNSym: Armv8 AArch64 semantics (decoder + executable instruction semantics), from AWS.
+# `main` (last touched 2024-12) pins Lean nightly-2024-10-07, too old for spec/ and algo/.
+# This rev is the tip of upstream's own `upgrade-lean-versions` branch, which steps the
+# toolchain to v4.31.0 and drops the ELFSage/doc-gen4 requirements (so no other deps).
+# Pinned to the exact commit: the branch is unmerged and may move.
+[[require]]
+name = "lnsym"
+git = "https://github.com/leanprover/LNSym"
+rev = "df80e2f600dc7f2976809829198a1d9fd07cb379"
+
+[[lean_lib]]
+name = "AvgArm"
