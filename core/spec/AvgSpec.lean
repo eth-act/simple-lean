@@ -14,12 +14,12 @@ so "satisfies `IsAvg`" is as strong as "equals the average".
 This file, plus the *statements* (not proofs) of the end-to-end theorems, which say how
 each implementation's inputs and outputs map onto `IsAvg`:
 
-* `aeneas/AvgAeneas/Proofs.lean`: `rust_avg_correct`
-* `riscv/AvgRiscv/Proofs.lean`: `avgProgram_spec` (and `avgProgram_correct`)
-* `x86/AvgX86/Proofs.lean`: `avgProgram_correct`
-* `arm/AvgArm/Proofs.lean`: `avgProgram_correct`
+* `backends/aeneas/AvgAeneas/Proofs.lean`: `rust_avg_correct`
+* `backends/riscv/AvgRiscv/Proofs.lean`: `avgProgram_spec` (and `avgProgram_correct`)
+* `backends/x86/AvgX86/Proofs.lean`: `avgProgram_correct`
+* `backends/arm/AvgArm/Proofs.lean`: `avgProgram_correct`
 
-Everything else, including `algo/` and every proof body, is checked by Lean.
+Everything else, including `core/algo/` and every proof body, is checked by Lean.
 -/
 
 namespace Avg

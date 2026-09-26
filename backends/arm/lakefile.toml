@@ -1,0 +1,24 @@
+# AArch64 machine code for `avg`, verified with LNSym's Armv8 semantics.
+name = "AvgArm"
+version = "0.1.0"
+defaultTargets = ["AvgArm"]
+
+[[require]]
+name = "spec"
+path = "../../core/spec"
+
+# avgFast and `avgFast_isAvg`: the machine code computes avgFast, and this lemma finishes.
+[[require]]
+name = "algo"
+path = "../../core/algo"
+
+# LNSym: Armv8 AArch64 semantics (decoder + executable instruction semantics), from AWS.
+# Use the upstream Lean-upgrade branch for compatibility with the shared core.
+# Pin an exact revision because the branch may move.
+[[require]]
+name = "lnsym"
+git = "https://github.com/leanprover/LNSym"
+rev = "df80e2f600dc7f2976809829198a1d9fd07cb379"
+
+[[lean_lib]]
+name = "AvgArm"

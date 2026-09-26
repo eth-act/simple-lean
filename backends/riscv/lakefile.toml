@@ -1,17 +1,16 @@
 # RISC-V side: `avg` as RV64IM machine code, proved to satisfy `IsAvg`.
-# Separate package because riscv-zkvm pins Lean v4.33.0 while Aeneas (aeneas/) pins v4.31.0.
 name = "AvgRiscv"
 version = "0.1.0"
 defaultTargets = ["AvgRiscv"]
 
 [[require]]
 name = "spec"
-path = "../spec"
+path = "../../core/spec"
 
 # avgFast and `avgFast_isAvg`: the machine code computes avgFast, and this lemma finishes.
 [[require]]
 name = "algo"
-path = "../algo"
+path = "../../core/algo"
 
 # Sail RISC-V extraction + computable RV64IM model + their equivalence proofs.
 # Tagged release so Lake downloads prebuilt oleans instead of rebuilding Sail.

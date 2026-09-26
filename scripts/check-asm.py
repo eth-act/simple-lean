@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Check that rustc's machine code for `avg` is exactly the program each proof is about.
 
-Each ISA proof (riscv/, x86/, arm/) is about `avgProgram` in its `Impl.lean`:
+Each ISA proof under backends/ is about `avgProgram` in its `Impl.lean`:
 an instruction list (RISC-V), parsed AT&T assembly (x86), or raw words (Arm).
 This script ties that program to real compiler output:
 
-  1. build rust/ for the ISA's target (release),
+  1. build impl/rust/ for the ISA's target (release),
   2. disassemble the `avg` symbol with objdump,
   3. compare instructions, normalised AT&T assembly, or raw words respectively.
 
@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CRATE = os.path.join(ROOT, "rust")
+CRATE = os.path.join(ROOT, "impl", "rust")
 RUST_TOOLCHAIN = "1.94.0"
 SYMBOL = "avg"
 
@@ -138,7 +138,7 @@ def check_riscv():
     rlib = build_rlib("riscv64imac-unknown-none-elf", "-C target-feature=-c,-zca,-a")
     objdump = os.environ.get("OBJDUMP_RISCV", "riscv64-unknown-elf-objdump")
     compiled = [riscv_to_lean(*i) for i in objdump_lines(objdump, ["-M", "no-aliases,numeric"], rlib)]
-    return compiled, lean_list(os.path.join(ROOT, "riscv", "AvgRiscv", "Impl.lean"))
+    return compiled, lean_list(os.path.join(ROOT, "backends", "riscv", "AvgRiscv", "Impl.lean"))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -211,7 +211,7 @@ def check_x86():
         if not re.fullmatch(r"(?:[0-9a-f]{2}){1,15}", raw):
             sys.exit(f"invalid x86 instruction bytes: {raw}")
         compiled.append(x86_asm(mnem, ops, disassembled=True))
-    impl = os.path.join(ROOT, "x86", "AvgX86", "Impl.lean")
+    impl = os.path.join(ROOT, "backends", "x86", "AvgX86", "Impl.lean")
     return compiled, lean_x86_asm(impl)
 
 
@@ -224,7 +224,7 @@ def check_arm():
             sys.exit(f"expected a 32-bit AArch64 instruction word: {raw} {mnem} {ops}")
         compiled.append(f"0x{raw}#32")
     return compiled, lean_list(
-        os.path.join(ROOT, "arm", "AvgArm", "Impl.lean"), ty="List (BitVec 32)")
+        os.path.join(ROOT, "backends", "arm", "AvgArm", "Impl.lean"), ty="List (BitVec 32)")
 
 
 ISAS = {"riscv": check_riscv, "x86": check_x86, "arm": check_arm}

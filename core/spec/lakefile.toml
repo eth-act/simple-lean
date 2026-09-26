@@ -1,0 +1,7 @@
+# The shared specification. Core Lean only, compiled under each consumer's toolchain.
+name = "spec"
+version = "0.1.0"
+defaultTargets = ["AvgSpec"]
+
+[[lean_lib]]
+name = "AvgSpec"

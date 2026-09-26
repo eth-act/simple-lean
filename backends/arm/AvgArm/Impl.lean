@@ -3,7 +3,7 @@ import Arm.State
 /-!
 # `avg` as AArch64 machine code
 
-These are exactly the instruction words rustc emits for `rust/src/lib.rs` (release, target
+These are exactly the instruction words rustc emits for `impl/rust/src/lib.rs` (release, target
 `aarch64-unknown-linux-gnu`; `aarch64-apple-darwin` is identical). CI recompiles the crate,
 disassembles the `avg` symbol, and checks its words against this list: see
 `scripts/check-asm.py`. Keep the two in sync.

@@ -1,6 +1,5 @@
-# The algorithm, independent of language: avgWide (widening), avgFast (the bit trick), avgOverflow
-# (the overflowing one), and their proofs against the spec. Core Lean only, like spec/, so both proof packages
-# (aeneas/: Lean v4.31, riscv/: Lean v4.33) can depend on it under their own toolchains.
+# Language-independent algorithms and their proofs against the shared specification.
+# Core Lean only, compiled under each consumer's toolchain.
 name = "algo"
 version = "0.1.0"
 defaultTargets = ["AvgAlgo"]

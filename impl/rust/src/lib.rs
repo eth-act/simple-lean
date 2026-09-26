@@ -4,8 +4,8 @@
 ///
 /// `a + b = 2·(a & b) + (a ^ b)`, so `(a + b) / 2 = (a & b) + (a ^ b) / 2`,
 /// and neither term can overflow. Proved to satisfy the spec `Avg.IsAvg` in
-/// `aeneas/AvgAeneas/Proofs.lean` (via Aeneas) and as machine code in
-/// `riscv/AvgRiscv/Proofs.lean`, `x86/AvgX86/Proofs.lean`, `arm/AvgArm/Proofs.lean`.
+/// `backends/aeneas/AvgAeneas/Proofs.lean` (via Aeneas) and as machine code in
+/// the `backends/{riscv,x86,arm}/` packages. See README.md for the review entry points.
 ///
 /// `extern "C"` selects each target's C ABI: RISC-V psABI, x86-64 System V,
 /// or AAPCS64. The machine-code proofs use the corresponding argument/result registers.

@@ -3,7 +3,7 @@ import RiscvZkvm.Rv64
 /-!
 # `avg` as RV64IM machine code
 
-These are exactly the instructions rustc emits for `rust/src/lib.rs` (release, target
+These are exactly the instructions rustc emits for `impl/rust/src/lib.rs` (release, target
 `riscv64imac-unknown-none-elf` with compressed instructions disabled). CI recompiles the
 crate, disassembles the `avg` symbol, and checks it against this list:
 see `scripts/check-asm.py`. Keep the two in sync; do not edit one without the other.

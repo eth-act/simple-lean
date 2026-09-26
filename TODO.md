@@ -2,7 +2,7 @@
 
 ## RISC-V: take objdump out of the trusted base (option b)
 
-Today `riscv/AvgRiscv/Proofs.lean` proves the instruction list `avgProgram` correct, and
+Today `backends/riscv/AvgRiscv/Proofs.lean` proves the instruction list `avgProgram` correct, and
 `scripts/check-asm.py` ties that list to rustc's output by disassembling it with
 objdump and comparing text. So objdump, and the script's mnemonic-to-`Instr` mapping,
 are trusted.
@@ -29,7 +29,7 @@ Sail RISC-V spec is per instruction (`RiscvZkvm.Rv64.SailEquiv`).
 
 ## x86-64: take objdump out of the trusted base
 
-`x86/AvgX86/Impl.lean` passes the AT&T assembly for the complete `avg` function to
+`backends/x86/AvgX86/Impl.lean` passes the AT&T assembly for the complete `avg` function to
 Kraken's parser. `scripts/check-asm.py` checks that text against rustc's disassembly,
 preserving operand widths and instruction count while normalizing GNU spelling.
 Kraken has an assembly parser, not a binary decoder; this remains a trusted text binding.
@@ -43,8 +43,9 @@ Kraken has an assembly parser, not a binary decoder; this remains a trusted text
 Kraken's semantics are handwritten. Upstream's native differential-test harness assembles
 AT&T test programs with GNU binutils and compares modeled register/flag results against
 host execution; this is not a proof of ISA equivalence, nor a hardware-validation result
-established by this repository's CI. The model is pinned to commit
-`30f5a5f9f668283a294bf5ec5859e75b47b3a61a` and Lean `nightly-2026-09-21`.
+established by this repository's CI. The model revision is pinned in
+[`backends/x86/lakefile.toml`](backends/x86/lakefile.toml), and its Lean toolchain in
+[`backends/x86/lean-toolchain`](backends/x86/lean-toolchain).
 It does not model segment registers/bases, virtual memory, canonical-address checks, or
 most exceptions/faults. Our full-function theorem establishes the loaded stack return
 address, stack pop, result and memory/vector/GPR frame, not guarantees for those omissions.
@@ -57,13 +58,14 @@ address, stack pop, result and memory/vector/GPR frame, not guarantees for those
 
 ## AArch64: stabilize the model pin and byte extraction
 
-`arm/` uses LNSym's fetch/decode/run semantics on raw instruction words. Decoding those
+`backends/arm/` uses LNSym's fetch/decode/run semantics on raw instruction words. Decoding those
 words is checked in Lean, but the hand-written decoder and instruction semantics are
 still trusted to describe AArch64. Upstream has co-simulation tooling; this repository
 does not establish an ASL equivalence or claim local Arm hardware validation.
 
-- [ ] Move the exact `upgrade-lean-versions` commit pin to an upstream main/tag revision
-      once the Lean upgrade lands, rebuilding the proof before changing it.
+- [ ] Move the LNSym pin in [`backends/arm/lakefile.toml`](backends/arm/lakefile.toml)
+      to an upstream main/tag revision once the Lean upgrade lands, rebuilding the proof
+      before changing it.
 - [ ] Replace objdump word extraction with direct extraction of the `avg` symbol's bytes.
       Today objdump and the extraction/comparison script remain trusted.
 - [ ] Track an ASL equivalence for the decoder and the instruction forms used here.

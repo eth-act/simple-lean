@@ -1,17 +1,16 @@
 # x86-64 side: rustc's assembly for `avg`, verified with Kraken.
-# Separate package because Kraken pins its own Lean nightly.
 name = "AvgX86"
 version = "0.1.0"
 defaultTargets = ["AvgX86"]
 
 [[require]]
 name = "spec"
-path = "../spec"
+path = "../../core/spec"
 
 # avgFast and `avgFast_isAvg`: the machine code computes avgFast, and this lemma finishes.
 [[require]]
 name = "algo"
-path = "../algo"
+path = "../../core/algo"
 
 # Hand-written assembly semantics with a native differential-test harness.
 [[require]]

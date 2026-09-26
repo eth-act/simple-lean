@@ -6,14 +6,13 @@ on:
   workflow_dispatch:
 
 env:
-  # Aeneas/Charon release used to extract aeneas/AvgAeneas/Impl from rust/.
-  # MUST match the `rev` of the `aeneas` requirement in aeneas/lakefile.toml
-  # (release nightly-2026.09.25-fd27c97 == commit fd27c97d39108dd1c6b0cb46bbefd0b94a47b591).
+  # Aeneas/Charon release used to extract backends/aeneas/AvgAeneas/Impl from impl/rust/.
+  # MUST match the `rev` of the `aeneas` requirement in backends/aeneas/lakefile.toml.
   AENEAS_RELEASE: nightly-2026.09.25-fd27c97
 
 jobs:
   lean:
-    name: Aeneas proof (aeneas/, Lean v4.31 + Aeneas)
+    name: Aeneas proof (backends/aeneas)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -21,55 +20,55 @@ jobs:
       # lean-toolchain + lake-manifest.json, fetches the Mathlib cache, runs `lake build`.
       - uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: aeneas
+          lake-package-directory: backends/aeneas
           # Mathlib is only a transitive dependency (via aeneas), so don't rely on auto-detection.
           use-mathlib-cache: true
 
   algo:
-    name: avgFast / avgOverflow proofs + tests (algo/, core Lean)
+    name: avgFast / avgOverflow proofs + tests (core/algo)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       # `lake build` (AvgAlgo) then `lake test` (AvgAlgoTest, via `testDriver`).
       - uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: algo
+          lake-package-directory: core/algo
           use-mathlib-cache: false
           # Explicit, so a broken test driver fails CI instead of silently skipping tests.
           test: true
 
   riscv-lean:
-    name: RISC-V proof (riscv/, Lean v4.33 + riscv-zkvm)
+    name: RISC-V proof (backends/riscv)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: riscv-zkvm pins Lean v4.33.0 (aeneas/ v4.31.0, x86/ nightly-2026-09-21).
+      # Separate Lake package: toolchain and model revision are pinned in its package configuration.
       # riscv-zkvm is a tagged dependency, so Lake downloads its prebuilt oleans.
       - uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: riscv
+          lake-package-directory: backends/riscv
           use-mathlib-cache: false
 
   x86-lean:
-    name: x86-64 proof (x86/, Lean nightly-2026-09-21 + Kraken)
+    name: x86-64 proof (backends/x86)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: Kraken pins Lean nightly-2026-09-21 and builds from source.
+      # Separate Lake package: Kraken builds from the revision pinned in its lakefile.toml.
       # This builds our proof; it does not run Kraken's upstream native differential tests.
       - uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: x86
+          lake-package-directory: backends/x86
           use-mathlib-cache: false
 
   arm-lean:
-    name: AArch64 proof (arm/, Lean v4.31 + LNSym)
+    name: AArch64 proof (backends/arm)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: arm
+          lake-package-directory: backends/arm
           use-mathlib-cache: false
 
   asm:
@@ -92,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: rust
+        working-directory: impl/rust
     steps:
       - uses: actions/checkout@v5
       - name: Install stable Rust
@@ -128,16 +127,16 @@ jobs:
           rustup toolchain install "$CH" --profile minimal -c rustc-dev -c llvm-tools -c rust-src
 
       - name: Extract Rust with Charon and Aeneas
-        working-directory: rust
+        working-directory: impl/rust
         run: |
           charon cargo --preset=aeneas
-          aeneas -backend lean -dest ../aeneas/AvgAeneas/Impl -namespace Avg.Rust avg.llbc
+          aeneas -backend lean -dest ../../backends/aeneas/AvgAeneas/Impl -namespace Avg.Rust avg.llbc
 
-      - name: Check generated Lean matches the committed aeneas/AvgAeneas/Impl
+      - name: Check generated Lean matches the committed backends/aeneas/AvgAeneas/Impl
         run: |
-          if ! git diff --exit-code -- aeneas/AvgAeneas/Impl || [ -n "$(git status --porcelain -- aeneas/AvgAeneas/Impl)" ]; then
-            git status --porcelain -- aeneas/AvgAeneas/Impl
-            echo "::error::aeneas/AvgAeneas/Impl is out of date with rust/. Regenerate it locally (in rust/, with the ${AENEAS_RELEASE} charon/aeneas binaries on PATH): 'charon cargo --preset=aeneas && aeneas -backend lean -dest ../aeneas/AvgAeneas/Impl -namespace Avg.Rust avg.llbc', then commit the result. Never hand-edit aeneas/AvgAeneas/Impl."
+          if ! git diff --exit-code -- backends/aeneas/AvgAeneas/Impl || [ -n "$(git status --porcelain -- backends/aeneas/AvgAeneas/Impl)" ]; then
+            git status --porcelain -- backends/aeneas/AvgAeneas/Impl
+            echo "::error::backends/aeneas/AvgAeneas/Impl is out of date with impl/rust/. Regenerate it locally (in impl/rust/, with the ${AENEAS_RELEASE} charon/aeneas binaries on PATH): 'charon cargo --preset=aeneas && aeneas -backend lean -dest ../../backends/aeneas/AvgAeneas/Impl -namespace Avg.Rust avg.llbc', then commit the result. Never hand-edit backends/aeneas/AvgAeneas/Impl."
             exit 1
           fi
-          echo "aeneas/AvgAeneas/Impl is in sync with rust/."
+          echo "backends/aeneas/AvgAeneas/Impl is in sync with impl/rust/."
