@@ -1,0 +1,15 @@
+# Independent one-argument System V identity function verified with Kraken.
+name = "Identity"
+version = "0.1.0"
+defaultTargets = ["Identity"]
+
+[[require]]
+name = "AssemblyX86"
+path = "../../tooling/x86"
+
+[[lean_lib]]
+name = "Identity"
+
+[[lean_exe]]
+name = "export"
+root = "Export"

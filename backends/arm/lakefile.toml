@@ -12,13 +12,14 @@ path = "../../core/spec"
 name = "algo"
 path = "../../core/algo"
 
-# LNSym: Armv8 AArch64 semantics (decoder + executable instruction semantics), from AWS.
-# Use the upstream Lean-upgrade branch for compatibility with the shared core.
-# Pin an exact revision because the branch may move.
+# The adapter owns the canonical LNSym dependency and generic ELF export.
 [[require]]
-name = "lnsym"
-git = "https://github.com/leanprover/LNSym"
-rev = "df80e2f600dc7f2976809829198a1d9fd07cb379"
+name = "AssemblyArm"
+path = "../../tooling/arm"
 
 [[lean_lib]]
 name = "AvgArm"
+
+[[lean_exe]]
+name = "export"
+root = "Export"

@@ -1,0 +1,17 @@
+# Reusable x86-64 assembly/header export using Kraken's instruction syntax and printer.
+name = "AssemblyX86"
+version = "0.1.0"
+defaultTargets = ["AssemblyX86"]
+
+[[require]]
+name = "AssemblyExport"
+path = "../common"
+
+# Hand-written assembly semantics with a native differential-test harness.
+[[require]]
+name = "Kraken"
+git = "https://github.com/AeneasVerif/kraken"
+rev = "30f5a5f9f668283a294bf5ec5859e75b47b3a61a"
+
+[[lean_lib]]
+name = "AssemblyX86"

@@ -3,6 +3,9 @@
 One spec for the floor average of two `u64`s, and implementations proved to meet it: the Rust
 source (through Aeneas), and the RISC-V, x86-64 and AArch64 machine code rustc compiles it to.
 
+Reusable Lean assembly exporters live in `tooling/`; the average proofs are clients,
+not part of the exporters. `examples/identity/` demonstrates independent reuse.
+
 ## What to review
 
 Lean checks every proof. What it can't check is whether the claims are the right ones, so
@@ -43,10 +46,21 @@ backends/
     AvgRiscv/Impl.lean        avgProgram: rustc's RV64IM output for `avg`
     AvgRiscv/Proofs.lean      avgProgram_spec: separation-logic triple (framed); avgProgram_correct: stepN form
 
+tooling/
+  common/                    checked export declarations, signatures and GNU/header rendering
+  x86/                       reusable Kraken leaf-function emitter
+  arm/                       reusable LNSym raw-word leaf-function emitter
+  riscv/                     reusable RV64 encoder, decoder check and leaf-function emitter
+examples/
+  identity/                  independently proved one-argument identity function (x86)
+
 impl/
   rust/                      the Rust crate
 scripts/
   check-asm.py               checks rustc's disassembly == each ISA's avgProgram
+  export.py                  project-independent Lake module runner; writes symbol.s and symbol.h
+  check-avg.py               example-specific avg native smoke test
+  check-identity.py          independent one-argument native smoke test
 ```
 
 `core/spec` defines the shared contract; `core/algo` depends on it and proves the
@@ -58,11 +72,11 @@ and compiler-output checks; `scripts/check-asm.py` binds that output to the ISA 
 Separate Lake packages accommodate the models' Lean versions. Each package's
 `lean-toolchain` and `lakefile.toml` are authoritative for its toolchain and dependencies:
 [spec](core/spec/lakefile.toml), [algo](core/algo/lakefile.toml),
-[Aeneas](backends/aeneas/lakefile.toml), [x86](backends/x86/lakefile.toml),
-[Arm](backends/arm/lakefile.toml), [RISC-V](backends/riscv/lakefile.toml).
-`core/spec` and `core/algo` import nothing beyond core Lean, so every backend compiles
-the same `IsAvg` and `avgFast`. Build these packages sequentially locally: their
-shared path dependencies' build artifacts are toolchain-specific.
+[Aeneas](backends/aeneas/lakefile.toml), [x86 tooling](tooling/x86/lakefile.toml),
+[Arm tooling](tooling/arm/lakefile.toml), [RISC-V tooling](tooling/riscv/lakefile.toml).
+The ISA backends depend on their reusable tooling packages, which own the external
+model pins. Tooling depends on `tooling/common`, never on `core/` or an example.
+Build packages sequentially locally: shared path-dependency artifacts are toolchain-specific.
 
 ## Checking
 
@@ -79,10 +93,93 @@ The assembly check's Rust toolchain and targets are defined in
 [`scripts/check-asm.py`](scripts/check-asm.py). It also needs `riscv64-unknown-elf-objdump`,
 `objdump` and `llvm-objdump`; see the script's header for environment overrides.
 
+## Generic assembly export
+
+The runner accepts any Lake package and exporter module. It has no built-in ISA list,
+repository layout, function name or C signature. Only Python and elan/Lake are required.
+The only output files are **`<symbol>.s` and `<symbol>.h`**, placed directly in `--out-dir`.
+
+```bash
+python3 scripts/export.py --package backends/x86 --export Export --out-dir dist/x86
+python3 scripts/export.py --package backends/arm --export Export --out-dir dist/arm
+python3 scripts/export.py --package backends/riscv --export Export --out-dir dist/riscv
+
+# Separate package, different program, one argument, no Avg/core dependency:
+python3 scripts/export.py --package examples/identity --export Export --out-dir dist/identity
+```
+
+The avg clients emit `avg.s`/`avg.h` with `uint64_t avg(uint64_t, uint64_t)`.
+The identity client emits `identity_u64.s`/`identity_u64.h` with
+`uint64_t identity_u64(uint64_t)`.
+
+### Using the tooling in another project
+
+1. Depend on `AssemblyX86`, `AssemblyArm` or `AssemblyRiscv` via its `tooling/<isa>`
+   Lake package and use its compatible Lean toolchain. Keep `tooling/common` available
+   at the adapter's sibling path; the tooling tree does not require the avg examples.
+2. Define a program and a contract of type `AssemblyExport.Signature → Program → Prop`.
+   Include the intended input/result register mapping, preconditions, return behavior
+   and preserved state, not just an arithmetic equality.
+3. Construct `AssemblyExport.Function Program contract` with `symbol`, `signature`,
+   `program`, and `correct : contract signature program`. These fields bind the proof
+   to the exact exported program and declared signature. The existing backend Export
+   modules and identity example are complete working declarations.
+4. Register your exporter module as a Lake library module or executable root.
+   Its root `main : IO Unit` calls `AssemblyExport.run (AssemblyX86.emit declaration)`
+   (or the corresponding Arm/RISC-V emitter). `run` emits a JSON protocol; the Python
+   runner builds the package/module, imports that built module, and writes its output pair.
+   Module source directories need not match the runner's own filesystem layout.
+
+Current signatures are explicitly limited to `Signature.u64_0`, `.u64_1`, `.u64_2`:
+an unsigned 64-bit result and zero, one or two unsigned 64-bit arguments. No pointers,
+aggregates, floating-point signatures, callbacks or varargs are supported.
+
+Current emitters handle leaf instruction subsets, require a terminal return, and reject
+unsupported forms and earlier returns. There is no support for labels, branches,
+external calls, global data, relocations or general linking. This is reusable export
+tooling, not a general-purpose verified assembler.
+
+**A typed proof field is not a specification-quality check.** A client could supply a
+vacuous contract. Review the contract and ABI assumptions; building arbitrary proofs
+does not itself establish FFI safety. The shipped examples bind their actual full
+correctness/return/frame statements to their signature and program.
+
+### Consuming the output
+
+Output uses GNU syntax and Linux ELF directives, not Windows or macOS formats.
+x86 uses System V; Arm uses AAPCS64; RISC-V uses integer argument/result registers.
+Choose a compatible target toolchain and ABI (typically LP64D for RISC-V Linux).
+No Lean or Rust runtime is required by the emitted function.
+
+```bash
+cc -I dist/x86 caller.c dist/x86/avg.s -o caller
+cc -shared -fPIC dist/x86/avg.s -o libavg.so
+
+# Tests compile only temporary binaries:
+python3 scripts/check-avg.py dist/x86
+python3 scripts/check-identity.py dist/identity
+```
+
+### Export proof boundary
+
+- **Arm:** filter supported instruction classes with LNSym's decoder, then emit the
+  client's instruction words as little-endian `.byte` directives.
+- **RISC-V:** encode supported instructions, checking exact decoder agreement before
+  emitting `.byte` directives. The avg-specific decode and serialization certificates
+  remain in its backend. The executable decoder is not proved equivalent to Sail.
+- **x86:** validate the supported leaf subset and emit Kraken's Intel-syntax printer
+  output. That printer remains trusted; there is no binary-decoder proof.
+
+ISA fidelity, Lean's executable evaluation/export path and the output runner remain
+trusted. Consumers must trust their assembler/linker and preserve the code and ABI.
+We do not certify final ELF objects/libraries or check post-link bytes. CI assembles
+the examples for their targets and executes the native x86 examples; these checks do
+not prove the surrounding FFI application. Rust comparison remains separate in `check-asm.py`.
+
 ### ISA models and compiler-output binding
 
 The x86 proof uses [Kraken](https://github.com/AeneasVerif/kraken), pinned in
-[`backends/x86/lakefile.toml`](backends/x86/lakefile.toml). Its handwritten
+[`tooling/x86/lakefile.toml`](tooling/x86/lakefile.toml). Its handwritten
 model targets sequential 64-bit software; it is not a formal equivalence to Intel's
 specification or another ISA model. Upstream provides a
 [native differential-test harness](https://github.com/AeneasVerif/kraken/blob/HEAD/Kraken/X64/Test/README.md):
@@ -108,7 +205,7 @@ Arm's proof evaluates LNSym's fetch and decoder on raw words; unlike the RISC-V/
 it does not trust a mnemonic-to-instruction transcription or assembly-text binding.
 All paths still trust the ISA model's fidelity and the compiler-output binding script/tools.
 LNSym's revision is pinned in
-[`backends/arm/lakefile.toml`](backends/arm/lakefile.toml).
+[`tooling/arm/lakefile.toml`](tooling/arm/lakefile.toml).
 Remaining trust boundaries and plans to shrink them: see [TODO.md](TODO.md).
 
 ## Reading

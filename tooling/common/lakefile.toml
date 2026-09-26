@@ -1,0 +1,7 @@
+# ISA-independent export declarations and GNU assembly/header rendering.
+name = "AssemblyExport"
+version = "0.1.0"
+defaultTargets = ["AssemblyExport"]
+
+[[lean_lib]]
+name = "AssemblyExport"

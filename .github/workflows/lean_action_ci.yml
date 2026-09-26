@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: toolchain and model revision are pinned in its package configuration.
+      # The backend selects its toolchain; tooling/riscv owns the model dependency.
       # riscv-zkvm is a tagged dependency, so Lake downloads its prebuilt oleans.
       - uses: leanprover/lean-action@v1
         with:
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: Kraken builds from the revision pinned in its lakefile.toml.
+      # tooling/x86 owns the Kraken dependency; the backend owns the avg proof.
       # This builds our proof; it does not run Kraken's upstream native differential tests.
       - uses: leanprover/lean-action@v1
         with:
@@ -85,6 +85,62 @@ jobs:
             -t riscv64imac-unknown-none-elf -t x86_64-unknown-linux-gnu -t aarch64-unknown-linux-gnu
       - name: Compare disassembly of `avg` with each ISA's Impl.lean
         run: scripts/check-asm.py
+
+  assembly-export:
+    name: Lean assembly export (${{ matrix.backend }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - backend: x86
+            package: backends/x86
+            target: x86_64-linux-gnu
+            symbol: avg
+          - backend: arm
+            package: backends/arm
+            target: aarch64-linux-gnu
+            symbol: avg
+          - backend: riscv
+            package: backends/riscv
+            target: riscv64-linux-gnu
+            symbol: avg
+          - backend: identity
+            package: examples/identity
+            target: x86_64-linux-gnu
+            symbol: identity_u64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: ${{ matrix.package }}
+          use-mathlib-cache: false
+      - name: Export proved assembly and header without Rust
+        run: python3 scripts/export.py --package "${{ matrix.package }}" --export Export --out-dir "dist/${{ matrix.backend }}"
+      - name: Install assembler for smoke testing
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Assemble for the target without publishing binaries
+        env:
+          TARGET: ${{ matrix.target }}
+          SOURCE: dist/${{ matrix.backend }}/${{ matrix.symbol }}.s
+        run: |
+          flags=()
+          if [ "$TARGET" = riscv64-linux-gnu ]; then
+            flags=(-march=rv64imafd -mabi=lp64d -mno-relax)
+          fi
+          clang --target="$TARGET" "${flags[@]}" -c "$SOURCE" -o "$RUNNER_TEMP/function.o"
+      - name: Exercise native assembly through Python FFI and C
+        if: matrix.backend == 'x86'
+        run: python3 scripts/check-avg.py dist/x86
+      - name: Exercise independent one-argument example
+        if: matrix.backend == 'identity'
+        run: python3 scripts/check-identity.py dist/identity
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assembly-${{ matrix.backend }}
+          path: |
+            dist/**/*.s
+            dist/**/*.h
+          if-no-files-found: error
 
   rust:
     name: Rust tests

@@ -1,0 +1,17 @@
+# Generic AArch64 leaf-function export using LNSym's instruction decoder.
+name = "AssemblyArm"
+version = "0.1.0"
+defaultTargets = ["AssemblyArm"]
+
+[[require]]
+name = "AssemblyExport"
+path = "../common"
+
+# LNSym's Lean-upgrade revision, shared with every client of this adapter.
+[[require]]
+name = "lnsym"
+git = "https://github.com/leanprover/LNSym"
+rev = "df80e2f600dc7f2976809829198a1d9fd07cb379"
+
+[[lean_lib]]
+name = "AssemblyArm"

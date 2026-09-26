@@ -1,0 +1,18 @@
+# Generic checked RV64 instruction encoding and assembly/header export.
+name = "AssemblyRiscv"
+version = "0.1.0"
+defaultTargets = ["AssemblyRiscv"]
+
+[[require]]
+name = "AssemblyExport"
+path = "../common"
+
+# Sail RISC-V extraction + computable RV64IM model + their equivalence proofs.
+# Tagged release so Lake downloads prebuilt oleans instead of rebuilding Sail.
+[[require]]
+name = "riscv-zkvm"
+git = "https://github.com/Verified-zkEVM/riscv-zkvm"
+rev = "v0.3.1"
+
+[[lean_lib]]
+name = "AssemblyRiscv"

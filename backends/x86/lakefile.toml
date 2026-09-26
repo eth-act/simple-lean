@@ -12,11 +12,14 @@ path = "../../core/spec"
 name = "algo"
 path = "../../core/algo"
 
-# Hand-written assembly semantics with a native differential-test harness.
+# Reusable Kraken-backed assembly/header export adapter.
 [[require]]
-name = "Kraken"
-git = "https://github.com/AeneasVerif/kraken"
-rev = "30f5a5f9f668283a294bf5ec5859e75b47b3a61a"
+name = "AssemblyX86"
+path = "../../tooling/x86"
 
 [[lean_lib]]
 name = "AvgX86"
+
+[[lean_exe]]
+name = "export"
+root = "Export"

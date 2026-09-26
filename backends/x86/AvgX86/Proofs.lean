@@ -17,18 +17,23 @@ namespace AvgX86
 set_option maxRecDepth 4096
 set_option maxHeartbeats 2000000
 
-/-- The complete function, including the stack load and return. Undefined flag choices
-are universally quantified by Kraken's `straightlineStep`. The stack slot must be mapped
-ordinary memory; the semantics rejects non-memory loads. Instruction sizes and base are
-arbitrary because this function does not observe instruction addresses. -/
-theorem avgProgram_correct [layout : Layout] (s : MachineData) (ra : BitVec 64)
-    (hret : Mem.loadInt s.dmem s.regs.rsp.toBitVec 8 = some (Int.ofNat ra.toNat)) :
-    straightlineStep (layout avgProgram) (s, layout.start) (fun s' =>
+/-- Result, return and frame contract for a complete two-argument average function. -/
+def Correct (program : Program) : Prop :=
+  ∀ [layout : Layout] (s : MachineData) (ra : BitVec 64),
+    Mem.loadInt s.dmem s.regs.rsp.toBitVec 8 = some (Int.ofNat ra.toNat) →
+    straightlineStep (layout program) (s, layout.start) (fun s' =>
       Avg.IsAvg s.regs.rdi.toBitVec s.regs.rsi.toBitVec s'.1.regs.rax.toBitVec ∧
       s'.2.toBitVec = ra ∧
       s'.1.regs.rsp.toBitVec = s.regs.rsp.toBitVec + 8 ∧
       s'.1.dmem = s.dmem ∧ s'.1.zmms = s.zmms ∧
-      (∀ r, r ≠ .rax → r ≠ .rsi → r ≠ .rsp → s'.1.regs.get64 r = s.regs.get64 r)) := by
+      (∀ r, r ≠ .rax → r ≠ .rsi → r ≠ .rsp → s'.1.regs.get64 r = s.regs.get64 r))
+
+/-- The complete function, including the stack load and return. Undefined flag choices
+are universally quantified by Kraken's `straightlineStep`. The stack slot must be mapped
+ordinary memory; the semantics rejects non-memory loads. Instruction sizes and base are
+arbitrary because this function does not observe instruction addresses. -/
+theorem avgProgram_correct : Correct avgProgram := by
+  intro layout s ra hret
   unfold straightlineStep Executable.straightline
   rw [Kraken.Executable.directivesFromStart]
   simp only [avgProgram]

@@ -3,10 +3,10 @@ import RiscvZkvm.Rv64
 /-!
 # `avg` as RV64IM machine code
 
-These are exactly the instructions rustc emits for `impl/rust/src/lib.rs` (release, target
-`riscv64imac-unknown-none-elf` with compressed instructions disabled). CI recompiles the
-crate, disassembles the `avg` symbol, and checks it against this list:
-see `scripts/check-asm.py`. Keep the two in sync; do not edit one without the other.
+This instruction list is the source of truth for the native RISC-V export.
+`AvgRiscv.Encode` derives machine words from it and proves that decoding recovers this
+list. `Export.lean` emits those words as little-endian bytes in GNU ELF assembly.
+The Rust implementation remains an optional independent cross-check.
 
 RISC-V psABI: arguments in `a0` (x10) and `a1` (x11), result in `a0`, return address in
 `ra` (x1). `x12` (a2) is a caller-saved temporary.
