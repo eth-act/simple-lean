@@ -1,6 +1,5 @@
-# x86-64 side: rustc's x86-64 machine code for `avg`, proved to satisfy `IsAvg`, on the
-# x86lean semantics. Separate package: x86lean pins Lean v4.32.0-rc1, Aeneas (aeneas/)
-# pins v4.31.0 and riscv-zkvm (riscv/) v4.33.0.
+# x86-64 side: rustc's assembly for `avg`, verified with Kraken.
+# Separate package because Kraken pins its own Lean nightly.
 name = "AvgX86"
 version = "0.1.0"
 defaultTargets = ["AvgX86"]
@@ -14,12 +13,11 @@ path = "../spec"
 name = "algo"
 path = "../algo"
 
-# User-level x86-64 semantics in Lean 4 (hand-written; each form differentially tested
-# against ACL2 x86isa). Pinned to an exact commit: the project is young and its AST may move.
+# Hand-written assembly semantics with a native differential-test harness.
 [[require]]
-name = "x86lean"
-git = "https://github.com/jyh/x86lean"
-rev = "16e2cb21de102769d040cc219fa537968e2488fc"
+name = "Kraken"
+git = "https://github.com/AeneasVerif/kraken"
+rev = "30f5a5f9f668283a294bf5ec5859e75b47b3a61a"
 
 [[lean_lib]]
 name = "AvgX86"

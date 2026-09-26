@@ -13,7 +13,7 @@ a reviewer reads these statements (not their proofs):
 | `spec/AvgSpec.lean` | `IsAvg` | `r` is the floor average: `r = (a + b) / 2` over `ℕ` |
 | `aeneas/AvgAeneas/Proofs.lean` | `rust_avg_correct` | the Rust `avg` never panics and returns an `IsAvg` result |
 | `riscv/AvgRiscv/Proofs.lean` | `avgProgram_spec` | the machine code returns to `ra` (low bit cleared) with an `IsAvg` result in `a0`, preserving the separation-logic frame |
-| `x86/AvgX86/Proofs.lean` | `avgProgram_correct` | from a live state with a canonical return address, returns to `[rsp]` with an `IsAvg` result in `rax`; memory, SIMD and GPRs except `rax`, `rsi`, `rsp` unchanged |
+| `x86/AvgX86/Proofs.lean` | `avgProgram_correct` | Kraken's straight-line execution, with a return address loaded at `rsp`, returns to that PC with an `IsAvg` result in `rax` and `rsp` advanced by eight; memory, vector registers and GPRs except `rax`, `rsi`, `rsp` unchanged |
 | `arm/AvgArm/Proofs.lean` | `avgProgram_correct` | with code loaded at the initial PC and no model error, executes four words, returns to `x30` with an `IsAvg` result in `x0`, preserving memory, code and state fields except `x0`, `x8`, `x9`, PC |
 
 Each file lists its main results at the top.
@@ -37,9 +37,9 @@ riscv/                     Lean v4.33 + riscv-zkvm
   AvgRiscv/Impl.lean       avgProgram: rustc's RV64IM output for `avg`
   AvgRiscv/Proofs.lean     avgProgram_spec: separation-logic triple (framed); avgProgram_correct: stepN form
 
-x86/                       Lean v4.32.0-rc1 + x86lean
-  AvgX86/Impl.lean         avgProgram: rustc's x86-64 output for `avg`
-  AvgX86/Proofs.lean       avgProgram_correct: runs, returns to [rsp], IsAvg rdi rsi rax, frame
+x86/                       Lean nightly-2026-09-21 + Kraken
+  AvgX86/Impl.lean         avgProgram: Kraken parses rustc's x86-64 AT&T assembly for `avg`
+  AvgX86/Proofs.lean       avgProgram_correct: straightlineStep, stack return/pop, IsAvg, frame
 
 arm/                       Lean v4.31 + LNSym
   AvgArm/Impl.lean         avgProgram: rustc's four raw AArch64 instruction words
@@ -51,7 +51,7 @@ scripts/check-asm.py       checks rustc's disassembly == each ISA's avgProgram
 
 Every proof package reuses `algo/`: the Rust and all three machine-code implementations
 compute `avgFast`, so each finishes with `avgFast_isAvg`. Separate Lake packages accommodate
-the models' Lean versions: Aeneas and Arm use v4.31.0, RISC-V v4.33.0, x86 v4.32.0-rc1.
+the models' Lean versions: Aeneas and Arm use v4.31.0, RISC-V v4.33.0, x86 nightly-2026-09-21.
 `spec/` and `algo/` import nothing beyond core Lean, so every side compiles the same `IsAvg`
 and `avgFast`. Build these packages sequentially locally: their shared path dependencies'
 build artifacts are toolchain-specific.
@@ -70,10 +70,36 @@ scripts/check-asm.py                    # rustc 1.94.0 output == each avgProgram
 The assembly check needs the pinned Rust targets plus `riscv64-unknown-elf-objdump`,
 `objdump` and `llvm-objdump`; see the script's header for environment overrides.
 
+### ISA models and compiler-output binding
+
+The x86 proof uses [Kraken](https://github.com/AeneasVerif/kraken), pinned to commit
+`30f5a5f9f668283a294bf5ec5859e75b47b3a61a` in `x86/lakefile.toml`. Its handwritten
+model targets sequential 64-bit software; it is not a formal equivalence to Intel's
+specification or another ISA model. Upstream provides a
+[native differential-test harness](https://github.com/AeneasVerif/kraken/blob/30f5a5f9f668283a294bf5ec5859e75b47b3a61a/Kraken/X64/Test/README.md):
+it assembles AT&T test programs with GNU binutils and compares Kraken's register/flag
+results with host execution. That is supporting evidence, not a proof of model fidelity;
+this repository's CI builds the avg proof, not that upstream hardware test suite.
+
+Kraken parses assembly text, not binary bytes, and does not restrict every modeled
+instruction to an encodable form. `scripts/check-asm.py` therefore compares the literal
+AT&T assembly passed to `parse` in `avgProgram` against rustc's disassembly. It preserves
+instruction order, count and 64-bit operands, normalizing only whitespace, GNU mnemonic
+suffixes, immediate spelling and an implicit shift count of one. Unsupported forms fail
+closed. The disassembler, this comparison and Kraken's assembly parser remain trusted;
+there is no x86 binary-decoder proof or claim about instruction-byte lengths.
+
+The x86 theorem covers the full six-instruction function, including `ret`, its loaded
+stack return address, the eight-byte stack pop and the memory/vector/GPR frame.
+Flags may change. Kraken does not model segment registers or segment bases, virtual
+memory, canonical-address checks, or most exceptions/faults; the theorem makes no
+segment-base, canonical-return-address or architectural-exception guarantee.
+
 Arm's proof evaluates LNSym's fetch and decoder on raw words; unlike the RISC-V/x86 paths,
-it does not trust a mnemonic-to-instruction transcription. All paths still trust the ISA
-model's fidelity and the compiler-output binding script/tools. LNSym is pinned to commit
-`df80e2f600dc7f2976809829198a1d9fd07cb379` on its `upgrade-lean-versions` branch.
+it does not trust a mnemonic-to-instruction transcription or assembly-text binding.
+All paths still trust the ISA model's fidelity and the compiler-output binding script/tools.
+LNSym is pinned to commit `df80e2f600dc7f2976809829198a1d9fd07cb379` on its
+`upgrade-lean-versions` branch.
 Remaining trust boundaries and plans to shrink them: see [TODO.md](TODO.md).
 
 ## Reading

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Check that rustc's machine code for `avg` is exactly the instruction list each proof is about.
+"""Check that rustc's machine code for `avg` is exactly the program each proof is about.
 
-Each ISA proof (riscv/, x86/, arm/) is about a Lean list
-`avgProgram` in the package's `Impl.lean`. This script ties that list to real compiler output:
+Each ISA proof (riscv/, x86/, arm/) is about `avgProgram` in its `Impl.lean`:
+an instruction list (RISC-V), parsed AT&T assembly (x86), or raw words (Arm).
+This script ties that program to real compiler output:
 
   1. build rust/ for the ISA's target (release),
   2. disassemble the `avg` symbol with objdump,
-  3. compare decoded instructions (RISC-V/x86) or raw words (Arm) with the Lean list.
+  3. compare instructions, normalised AT&T assembly, or raw words respectively.
 
-Trusted here: rustc, objdump, this script, and its RISC-V/x86 mnemonic mappings.
-Arm decoding happens inside the Lean proof; the decoder's ISA faithfulness remains trusted.
+Trusted here: rustc, objdump, this script, its RISC-V mapping and x86 normalisation.
+Kraken parses assembly, not binary bytes. Arm decoding happens inside the Lean proof;
+each model's ISA faithfulness remains trusted.
 
 rustc is pinned (RUST_TOOLCHAIN): codegen can change between versions and each proof is
 about one exact instruction sequence. Bumping it may require updating the Impl files.
@@ -50,16 +52,18 @@ def build_rlib(target, rustflags=""):
     return rlib
 
 
-def objdump_lines(objdump, flags, obj):
+def objdump_lines(objdump, flags, obj, strict=False):
     """(raw hex bytes, mnemonic, operand string) for each instruction of SYMBOL."""
     out = run([objdump, "-d", *flags, f"--disassemble={SYMBOL}", obj])
     insns = []
     for line in out.splitlines():
         # riscv: "   0:\t00a5f633          \tand\tx12,x11,x10"
-        # x86:   "   0:\t48 89 f0             \tmov    rax,rsi"
+        # x86:   "   0:\t48 89 f0             \tmov    %rsi,%rax"
         m = re.match(r"^\s*[0-9a-f]+:\s+((?:[0-9a-f]{2,8} ?)+)\s+(\S+)\s*(.*?)\s*(#.*)?$", line)
         if m:
             insns.append((m.group(1).replace(" ", ""), m.group(2), m.group(3)))
+        elif strict and re.match(r"^\s*[0-9a-f]+:", line):
+            sys.exit(f"unparsed instruction in objdump output: {line}")
     if not insns:
         sys.exit(f"symbol `{SYMBOL}` not found in {obj}")
     return insns
@@ -68,7 +72,7 @@ def objdump_lines(objdump, flags, obj):
 def lean_list(path, name="avgProgram", ty="List Instr"):
     """The entries of `def <name> : <ty> := [ ... ]`, whitespace-normalised.
 
-    Entries are split at top-level commas only (x86lean entries `⟨op, len⟩` contain commas)."""
+    Entries are split at top-level commas only."""
     src = open(path).read()
     m = re.search(rf"def {re.escape(name)} : {re.escape(ty)} :=\s*\[", src)
     if not m:
@@ -138,50 +142,77 @@ def check_riscv():
 
 
 # ---------------------------------------------------------------------------------------------
-# x86-64: x86lean's `Instr` = ⟨op, encoded length⟩ (64-bit GPR forms only)
+# x86-64: Kraken's parsed AT&T assembly (only the 64-bit forms used by avg)
 # ---------------------------------------------------------------------------------------------
 
 X86_GPRS = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
             "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"}
-X86_BIN = {"add", "sub", "and", "or", "xor", "cmp", "test", "adc", "sbb"}
-X86_SHIFT = {"shl", "shr", "sar"}
+X86_BIN = {"mov", "and", "xor", "add"}
 
 
-def x86_to_lean(raw, mnem, ops):
-    """Only 64-bit register-register / register-imm8 forms; anything else is refused."""
-    length = len(raw) // 2
+def x86_asm(mnem, ops, disassembled=False):
+    """Normalise spelling only; never discard widths, operands or instructions."""
+    original = f"{mnem} {ops}".strip()
     ops = [o.strip() for o in ops.split(",")] if ops else []
+    if mnem in ({"ret", "retq"} if disassembled else {"ret"}) and not ops:
+        return "ret"
+
+    # GNU objdump omits q when register names establish the width. Do not strip
+    # arbitrary suffixes: a movl/shrl (or a 32-bit register) must fail, not match.
+    base = mnem[:-1] if mnem.endswith("q") else mnem
+    if mnem != base + "q" and not disassembled:
+        sys.exit(f"expected an explicit 64-bit suffix in x86 assembly: `{original}`")
 
     def reg(o):
-        if o not in X86_GPRS:
-            sys.exit(f"unsupported x86 operand `{o}` in `{mnem} {','.join(ops)}` (64-bit GPRs only)")
-        return f"(.reg .{o})"
+        if not o.startswith("%") or o[1:] not in X86_GPRS:
+            sys.exit(f"unsupported x86 operand `{o}` in `{original}` (64-bit GPRs only)")
+        return o
 
-    if mnem == "ret" and not ops:
-        body = ".ret"
-    elif mnem == "mov" and len(ops) == 2:
-        body = f".mov .q {reg(ops[0])} {reg(ops[1])}"
-    elif mnem in X86_BIN and len(ops) == 2:
-        body = f".bin .{mnem} .q {reg(ops[0])} {reg(ops[1])}"
-    elif mnem in X86_SHIFT and len(ops) == 2 and re.fullmatch(r"(0x)?[0-9a-f]+", ops[1]):
-        body = f".shift .{mnem} .q {reg(ops[0])} (.imm8 {int(ops[1], 0)})"
-    else:
-        sys.exit(f"instruction `{mnem} {','.join(ops)}` has no mapping to x86lean's Instr")
-    return f"⟨{body}, {length}⟩"
+    if base in X86_BIN and len(ops) == 2:
+        return f"{base}q {reg(ops[0])}, {reg(ops[1])}"
+    if base == "shr":
+        # D1 /5 has an implicit count of one; GNU may print just the destination.
+        if disassembled and len(ops) == 1:
+            ops.insert(0, "$1")
+        if len(ops) == 2 and re.fullmatch(r"\$(?:0x[0-9a-fA-F]+|[0-9]+)", ops[0]):
+            count = int(ops[0][1:], 16 if ops[0].startswith("$0x") else 10)
+            if 0 <= count <= 255:
+                return f"shrq ${count}, {reg(ops[1])}"
+    sys.exit(f"unsupported x86 instruction: `{original}`")
+
+
+def lean_x86_asm(path):
+    """Read the literal passed to Kraken's parse; refuse escapes or other expressions."""
+    src = open(path).read()
+    m = re.search(r'^\s*def avgProgram\s*:\s*Program\s*:=\s*parse\(\s*"([^"\\]*)"\s*\)\s*$',
+                  src, re.M)
+    if not m:
+        sys.exit(f'could not find `def avgProgram : Program := parse("...")` in {path}')
+    instructions = []
+    for line in m.group(1).splitlines():
+        if not line.strip():
+            continue
+        parts = line.strip().split(None, 1)
+        instructions.append(x86_asm(parts[0], parts[1] if len(parts) == 2 else ""))
+    if not instructions:
+        sys.exit(f"empty x86 avgProgram in {path}")
+    return instructions
 
 
 def check_x86():
     rlib = build_rlib("x86_64-unknown-linux-gnu")
     objdump = os.environ.get("OBJDUMP_X86", "objdump")
-    compiled = [x86_to_lean(*i) for i in objdump_lines(objdump, ["-M", "intel"], rlib)]
+    # AT&T preserves Kraken's source/destination order. Keep all bytes on one line,
+    # disassemble zero runs, and reject unparsed instruction lines rather than
+    # silently losing an opcode.
+    compiled = []
+    for raw, mnem, ops in objdump_lines(
+            objdump, ["-M", "att", "--insn-width=15", "--disassemble-zeroes"], rlib, strict=True):
+        if not re.fullmatch(r"(?:[0-9a-f]{2}){1,15}", raw):
+            sys.exit(f"invalid x86 instruction bytes: {raw}")
+        compiled.append(x86_asm(mnem, ops, disassembled=True))
     impl = os.path.join(ROOT, "x86", "AvgX86", "Impl.lean")
-    # avgProgram = avgBody ++ [⟨.ret, 1⟩]: compare against the body list plus that final entry.
-    src = open(impl).read()
-    tail = re.search(r"def avgProgram : List Instr :=\s*avgBody \+\+ \[(.*?)\]", src, re.S)
-    if not tail:
-        sys.exit(f"could not find `def avgProgram := avgBody ++ [...]` in {impl}")
-    expected = lean_list(impl, "avgBody") + [" ".join(tail.group(1).split())]
-    return compiled, expected
+    return compiled, lean_x86_asm(impl)
 
 
 def check_arm():

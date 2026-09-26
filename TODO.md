@@ -29,22 +29,31 @@ Sail RISC-V spec is per instruction (`RiscvZkvm.Rv64.SailEquiv`).
 
 ## x86-64: take objdump out of the trusted base
 
-Same gap as RISC-V (b): `x86/AvgX86/Impl.lean` is a transcription of objdump's output,
-checked textually by `scripts/check-asm.py`. x86lean has no decoder yet (it trusts Intel
-XED; its own roadmap has a Lean decoder "for the covered subset" as a later phase).
+`x86/AvgX86/Impl.lean` passes the AT&T assembly for the complete `avg` function to
+Kraken's parser. `scripts/check-asm.py` checks that text against rustc's disassembly,
+preserving operand widths and instruction count while normalizing GNU spelling.
+Kraken has an assembly parser, not a binary decoder; this remains a trusted text binding.
 
-- [ ] When x86lean ships its decoder, commit `avg`'s bytes (`48 89 f0 48 21 f8 …`) and
-      prove they decode to `avgProgram`, replacing the text comparison.
+- [ ] Add a binary-decoding path with a proved connection to Kraken's parsed program.
+      Then commit `avg`'s bytes (`48 89 f0 48 21 f8 …`) and prove they decode to
+      `avgProgram`, replacing disassembly/text comparison with direct byte extraction.
 
 ## x86-64: what the model is trusted for
 
-x86lean's `step` is hand-written, differentially tested against ACL2 x86isa (every form,
-zero unexplained disagreements), not proved against it, and not yet co-simulated on
-hardware. It is three weeks old and pinned to one commit in `x86/lakefile.toml`.
+Kraken's semantics are handwritten. Upstream's native differential-test harness assembles
+AT&T test programs with GNU binutils and compares modeled register/flag results against
+host execution; this is not a proof of ISA equivalence, nor a hardware-validation result
+established by this repository's CI. The model is pinned to commit
+`30f5a5f9f668283a294bf5ec5859e75b47b3a61a` and Lean `nightly-2026-09-21`.
+It does not model segment registers/bases, virtual memory, canonical-address checks, or
+most exceptions/faults. Our full-function theorem establishes the loaded stack return
+address, stack pop, result and memory/vector/GPR frame, not guarantees for those omissions.
 
-- [ ] Re-pin when x86lean runs hardware co-simulation; check the AST didn't move.
-- [ ] Watch for a Sail/x86isa-backed Lean model (the Sail x86 model's Lean output did not
-      build under lean-sail v6: old memory interface) that could replace or check it.
+- [ ] Run and record the pinned upstream native differential tests on supported hardware,
+      especially the instruction forms used here; do not confuse passing tests with proof.
+- [ ] Track a formal connection to an authoritative x86 ISA specification.
+- [ ] Rebuild the full proof and recheck compiler binding whenever changing Kraken's pin
+      or the nightly Lean toolchain.
 
 ## AArch64: stabilize the model pin and byte extraction
 

@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: riscv-zkvm pins Lean v4.33.0 (aeneas/ v4.31.0, x86/ v4.32.0-rc1).
+      # Separate Lake package: riscv-zkvm pins Lean v4.33.0 (aeneas/ v4.31.0, x86/ nightly-2026-09-21).
       # riscv-zkvm is a tagged dependency, so Lake downloads its prebuilt oleans.
       - uses: leanprover/lean-action@v1
         with:
@@ -51,12 +51,12 @@ jobs:
           use-mathlib-cache: false
 
   x86-lean:
-    name: x86-64 proof (x86/, Lean v4.32.0-rc1 + x86lean)
+    name: x86-64 proof (x86/, Lean nightly-2026-09-21 + Kraken)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Separate Lake package: x86lean pins Lean v4.32.0-rc1. Core Lean only, no prebuilt
-      # oleans; the model builds from source in well under a minute.
+      # Separate Lake package: Kraken pins Lean nightly-2026-09-21 and builds from source.
+      # This builds our proof; it does not run Kraken's upstream native differential tests.
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: x86
